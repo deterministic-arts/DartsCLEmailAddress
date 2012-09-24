@@ -407,7 +407,10 @@ value returned is a legal domain part of an email address."
                   ((:text) (setf state :dot))
                   (t (return-from escape-domain (escape-it position)))))
                (t (return-from escape-domain (escape-it position))))
-         :finally (return (subseq string start end))))))
+         :finally (return 
+                    (if (eq state :text)
+                        (subseq string start end)
+                        (escape-it position)))))))
 
 
 (defun parse-rfc5322-mailbox-list (string &optional (start 0) (end nil))
@@ -473,7 +476,9 @@ properly escaped."
                   ((:text) (setf state :dot))
                   (t (return-from escape-local-part (escape-it position)))))
                (t (return-from escape-local-part (escape-it position))))
-         :finally (return (subseq string start end))))))
+         :finally (case state
+                    ((:text) (return (subseq string start end)))
+                    (t (return-from escape-local-part (escape-it position))))))))
 
 
 (defun escape-display-name (string &optional (start 0) (end nil))
