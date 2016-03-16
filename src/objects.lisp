@@ -128,6 +128,11 @@
                 :datum value :expected-type 'address
                 :format-control "~S is not a email address designator"
                 :format-arguments (list value)))
+       (from-object (object)
+         (typecase object
+           (address object)
+           (mailbox (from-object (mailbox-address object)))
+           (t (fail))))
        (from-string (string)
          (multiple-value-bind (local domain display error) (parse-rfc5322-mailbox string)
            (declare (ignore display))
@@ -136,6 +141,7 @@
                (fail)))))
     (typecase value
       (address value)
+      (mailbox (from-object (mailbox-address value)))
       (string (from-string value))
       (symbol (from-string (symbol-name value)))
       (t (fail)))))
