@@ -1,6 +1,6 @@
 #|                                           -*- mode: lisp; coding: utf-8 -*-
   Deterministic Arts -- Email Address Parser
-  Copyright (c) 2011 Dirk Esser
+  Copyright (c) 2011, 2016 Dirk Esser
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -23,8 +23,11 @@
 
 (defpackage "DARTS.LIB.EMAIL-ADDRESS"
   (:use "COMMON-LISP")
-  (:export "PARSE-RFC5322-ADDR-SPEC" 
-           "PARSE-RFC5322-MAILBOX"
-           "PARSE-RFC5322-MAILBOX-LIST"
-           "ESCAPE-DOMAIN" "ESCAPE-LOCAL-PART"))
+  (:export "*ALLOW-UNICODE*" "PARSE-RFC5322-ADDR-SPEC" 
+           "PARSE-RFC5322-MAILBOX" "PARSE-RFC5322-MAILBOX-LIST"
+           "ESCAPE-LOCAL-PART" "ESCAPE-DISPLAY-NAME" "ADDRESS" "ADDRESSP" 
+           "ADDRESS-LOCAL-PART" "ADDRESS-DOMAIN" "ADDRESS-STRING" "ADDRESS-HASH" 
+           "ADDRESS=" "ADDRESS/=" "ADDRESS<" "ADDRESS<=" "ADDRESS>=" "ADDRESS>"
+           "MAILBOX" "BASIC-MAILBOX" "MAILBOXP" "MAILBOX-STRING" "MAILBOX-DISPLAY-NAME"
+           "MAILBOX-ADDRESS" "MAILBOX-LOCAL-PART" "MAILBOX-DOMAIN"))
 

@@ -1,6 +1,6 @@
 #|                                           -*- mode: lisp; coding: utf-8 -*-
   Deterministic Arts -- Email Address Parser
-  Copyright (c) 2011 Dirk Esser
+  Copyright (c) 2011, 2016 Dirk Esser
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -103,6 +103,8 @@
                        obs-dtext          ;  "[", "]", or "\"
 |#
 
+(defvar *allow-unicode* nil)
+
 (declaim (ftype (function (character) (values t))
                 atext-char-p fws-char-p dtext-char-p ctext-char-p
                 qtext-char-p))
@@ -115,7 +117,8 @@
   (or (char<= #\A char #\Z)
       (char<= #\a char #\z)
       (char<= #\0 char #\9)
-      (position char "!#$%&'*+-/=?^_`{|}~")))
+      (position char "!#$%&'*+-/=?^_`{|}~")
+      (and *allow-unicode* (> (char-code char) 127))))
 
 (defun fws-char-p (char)
   (or (char= char #\tab)
@@ -125,17 +128,20 @@
 
 (defun dtext-char-p (char)
   (or (char<= #.(code-char 33) char #.(code-char 90))
-      (char<= #.(code-char 94) char #.(code-char 126))))
+      (char<= #.(code-char 94) char #.(code-char 126))
+      (and *allow-unicode* (> (char-code char) 127))))
 
 (defun ctext-char-p (char)
   (or (char<= #.(code-char 33) char #.(code-char 39))
       (char<= #.(code-char 42) char #.(code-char 91))
-      (char<= #.(code-char 93) char #.(code-char 126))))
+      (char<= #.(code-char 93) char #.(code-char 126))
+      (and *allow-unicode* (> (char-code char) 127))))
 
 (defun qtext-char-p (char)
   (or (char= char #.(code-char 33))
       (char<= #.(code-char 35) char #.(code-char 91))
-      (char<= #.(code-char 93) char #.(code-char 126))))
+      (char<= #.(code-char 93) char #.(code-char 126))
+      (and *allow-unicode* (> (char-code char) 127))))
 
 (defmacro recurr (name bindings &body body)
   (let ((names (mapcar #'car bindings))
@@ -157,7 +163,6 @@
         ((at (k) (char string k))
          (finish (buffer) (coerce buffer 'simple-string))
          (skip-comment (p depth)
-           (declare (inline at))
            (if (>= p end)
                (values p nil)
                (let ((char (at p)))
@@ -168,7 +173,6 @@
                    ((fws-char-p char) (skip-comment (1+ p) depth))
                    (t (values p nil))))))
          (skip-cfws (p)
-           (declare (inline at))
            (if (>= p end)
                (values p t)
                (let ((char (at p)))
@@ -177,12 +181,11 @@
                    ((fws-char-p char) (skip-cfws (1+ p)))
                    (t (values p t))))))
          (parse-quoted-string (p buffer)
-           (declare (inline at))           
            (if (>= p end) 
                (values p :error nil)
                (let ((char (at p)))
                  (cond
-                   ((char= char #\") (values p :quoted-string (finish buffer)))
+                   ((char= char #\") (values (1+ p) :quoted-string (finish buffer)))
                    ((char= char #\\) 
                     (if (< (- end p) 2) 
                         (values p :error nil)
@@ -197,12 +200,13 @@
                    (t (values p :error nil))))))
 
          (parse-domain-literal (p buffer)
-           (declare (inline at))           
            (if (>= p end) 
                (values p :error nil)
                (let ((char (at p)))
                  (cond
-                   ((char= char #\]) (values (1+ p) :domain-literal (finish buffer)))
+                   ((char= char #\]) 
+                    (vector-push-extend char buffer)
+                    (values (1+ p) :domain-literal (finish buffer)))
                    ((fws-char-p char) 
                     (vector-push-extend char buffer)
                     (parse-domain-literal (1+ p) buffer))
@@ -212,7 +216,6 @@
                    (t (values p :error nil))))))
 
          (parse-dot-atom (p)
-           (declare (inline at))
            (let ((buffer (make-buffer)))
              (recurr iter ((p p) (state :start) (pure t))
                (if (>= p end)
@@ -242,14 +245,16 @@
                  ((char= char #\@) (values (1+ position) :@ nil))
                  ((char= char #\>) (values (1+ position) :> nil))
                  ((char= char #\") (parse-quoted-string (1+ position) (make-buffer)))
-                 ((char= char #\[) (parse-domain-literal (1+ position) (make-buffer)))
+                 ((char= char #\[) (let ((buffer (make-buffer))) (vector-push-extend #\[ buffer) (parse-domain-literal (1+ position) buffer)))
                  ((char= char #\,) (values (1+ position) :comma nil))
                  ((atext-char-p char) (parse-dot-atom position))
                  (t (values position :error nil))))))))))
          
 
 
-(defun parse-rfc5322-addr-spec (string &optional (start 0) (end nil))
+(defun parse-rfc5322-addr-spec (string 
+                                &key (start 0) end
+                                     ((:allow-unicode *allow-unicode*) *allow-unicode*))
   "parse-rfc5322-addr-spec STRING &key START END => LOCAL-PART DOMAIN POSITION
 
 Parses an email address (rule addr-spec in RFC 5322) from STRING, starting at
@@ -271,8 +276,7 @@ an error, or when reaching the END index. The following error codes are defined:
   :missing-separator the `@´ was not found
   :bad-domain        no valid domain part could be found"
 
-  (let ((local-part nil)
-        (domain nil))
+  (let ((local-part nil))
     (labels 
         ((jump (position parser)
            (multiple-value-bind (after token value) (next-token string position end)
@@ -282,6 +286,7 @@ an error, or when reaching the END index. The following error codes are defined:
              ((:atom :dot-atom :quoted-string) (setf local-part value) (jump after #'parse-at))
              (t (values nil nil :bad-local-part before))))
          (parse-at (before after token value)
+           (declare (ignore value))
            (case token
              ((:@) (jump after #'parse-domain))
              (t (values local-part nil :missing-separator before))))
@@ -292,7 +297,9 @@ an error, or when reaching the END index. The following error codes are defined:
       (jump start #'parse-local-part))))
 
 
-(defun parse-rfc5322-mailbox (string &optional (start 0) (end nil))
+(defun parse-rfc5322-mailbox (string 
+                              &key (start 0) end 
+                                   ((:allow-unicode *allow-unicode*) *allow-unicode*))
   "parse-rfc5322-mailbox STRING &optional START END => LOCAL-PART DOMAIN DISPLAY-NAME ERROR POSITION"
   (let ((end (or end (length string)))
         (local-part nil)
@@ -374,46 +381,7 @@ an error, or when reaching the END index. The following error codes are defined:
       (jump start #'parse-start))))
 
 
-(defun escape-domain (string &optional (start 0) (end nil))
-  "escape-domain STRING &optional START END => ANSWER
-
-Returns a copy of the part between indices START (incl.) and 
-END (excl.) of STRING. If necessary, the result will be enclosed
-in #\\[ and #\\] characters. This function makes sure, that the
-value returned is a legal domain part of an email address."
-  (let ((end (or end (length string))))
-    (flet ((escape-it (prefix-length)
-             (let ((buffer (make-buffer)))
-               (vector-push-extend #\[ buffer)
-               (loop
-                  :for k :upfrom start :below prefix-length
-                  :do (vector-push-extend (char string k) buffer))
-               (loop
-                  :for k :upfrom prefix-length :below end
-                  :for char := (char string k)
-                  :do (if (or (dtext-char-p char) (fws-char-p char))
-                          (vector-push-extend char buffer)
-                          (error "invalid character ~S at position ~S" char k)))
-               (vector-push-extend #\] buffer)
-               (coerce buffer 'simple-string))))
-      (loop
-         :with state := :start
-         :for position :upfrom start :below end
-         :for char := (char string position)
-         :do (cond
-               ((atext-char-p char) (setf state :text))
-               ((char= char #\.)
-                (case state
-                  ((:text) (setf state :dot))
-                  (t (return-from escape-domain (escape-it position)))))
-               (t (return-from escape-domain (escape-it position))))
-         :finally (return 
-                    (if (eq state :text)
-                        (subseq string start end)
-                        (escape-it position)))))))
-
-
-(defun parse-rfc5322-mailbox-list (string &optional (start 0) (end nil))
+(defun parse-rfc5322-mailbox-list (string &key (start 0) end ((:allow-unicode *allow-unicode*) *allow-unicode*))
   (let ((end (or end (length string)))
         (answer ()))
     (labels
@@ -439,7 +407,7 @@ value returned is a legal domain part of an email address."
           (t (values nil error start)))))))
 
 
-(defun escape-local-part (string &optional (start 0) (end nil))
+(defun escape-local-part (string &key (start 0) end)
   "escape-local-part STRING &optional START END => ANSWER
 
 Returns a copy of the portion of STRING between START (incl.) and
@@ -481,7 +449,7 @@ properly escaped."
                     (t (return-from escape-local-part (escape-it position))))))))
 
 
-(defun escape-display-name (string &optional (start 0) (end nil))
+(defun escape-display-name (string &key (start 0) end)
   "escape-display-name STRING &optional START END => ANSWER
 
 Returns a copy of the portion of STRING between START (incl.) and

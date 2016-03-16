@@ -1,6 +1,6 @@
 #|                                           -*- mode: lisp; coding: utf-8 -*-
   Deterministic Arts -- Email Address Parser
-  Copyright (c) 2011 Dirk Esser
+  Copyright (c) 2011, 2016 Dirk Esser
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -36,9 +36,11 @@
   :description "Parsing and formatting email addresses (RFC 5322 compliant)"
   :long-description ""
   :depends-on ()
+  :serial t
   :components
   ((:module :src
     :components
     ((:file "package") 
-     (:file "parser" :depends-on ("package"))
+     (:file "parser")
+     (:file "objects")
      ))))
