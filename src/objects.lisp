@@ -184,9 +184,9 @@
 
 
 
-(defmethod mailboxp (object) nil)
-(defmethod mailboxp ((object mailbox)) t)
-(defmethod mailboxp ((object address)) t)
+(defmethod mailboxp (object) (declare (ignore object)) nil)
+(defmethod mailboxp ((object mailbox)) (declare (ignore object)) t)
+(defmethod mailboxp ((object address)) (declare (ignore object)) t)
 
 (defclass basic-mailbox (mailbox)
   ((mailbox-address
@@ -194,9 +194,12 @@
      :reader mailbox-address)
    (mailbox-display-name
      :type (or null string) :initform nil :initarg :display-name
-     :reader mailbox-display-name)))
+     :reader mailbox-display-name))
+  (:documentation "A simple concrete implementation of `mailbox', which
+    stores the address and display name information in dedicated slots."))
 
 (defmethod shared-initialize :after ((object basic-mailbox) slots &key (address nil have-address))
+  (declare (ignore slots))
   (when have-address
     (setf (slot-value object 'mailbox-address) (address address))))
 
@@ -206,8 +209,21 @@
             (mailbox-display-name object)
             (address-string (mailbox-address object)))))
 
-
 (defun mailbox (value)
+  "Coerces the given `value' into an instance of class `mailbox' or
+   a suitable subclass.
+
+     - if `value' is already a `mailbox', it is directly returned
+
+     - if `value' is an `address', a new mailbox instance is created,
+       using that address and a display name value of nil.
+
+     - if `value' is a string, it is parsed according to the RFC 5322
+       `mailbox' production and a mailbox instance is created from the
+       results.
+
+    If the value cannot be coerced, signals a condition of type 
+    `type-error'."
   (labels
       ((fail ()
          (error 'simple-type-error
