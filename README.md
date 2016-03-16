@@ -13,8 +13,8 @@ Package DARTS.LIB.EMAIL-ADDRESS
 - Function: `parse-rfc5322-addr-spec` _string_ `&key` _start_ _end_ _allow-unicode_ &rarr; _local-part_ _domain_ _error_
 - Function: `parse-rfc5322-mailbox` _string_ `&key` _start_ _end_ _allow-unicode_ &rarr; _local-part_ _domain_ _display-name_ _error_
 - Function: `parse-rfc5322-mailbox-list` _string_ `&key` _start_ _end_ _allow-unicode_ &rarr; _list_ _error_ _position_
-- Function: `escape-local-part` _string_ &key _start_ _end_ &rarr; _result_
-- Function: `escape-display-name` _string_ &key _start_ _end_ &rarr; _result_
+- Function: `escape-local-part` _string_ `&key` _start_ _end_ &rarr; _result_
+- Function: `escape-display-name` _string_ `&key` _start_ _end_ &rarr; _result_
 
 - Structure: `address`
 
@@ -45,7 +45,6 @@ Package DARTS.LIB.EMAIL-ADDRESS
 
   If this function cannot convert its argument into an `address`, it signals
   an error of type `type-error`.
-
 
 - Function: `address-local-part` _object_ &rarr; _string_
 
@@ -101,11 +100,67 @@ Package DARTS.LIB.EMAIL-ADDRESS
   structure class `address` for details about address ordering.
 
 - Class: `mailbox`
+
+  A mailbox is basically an `address` combined with a display name.
+  This class itself does not actually provide anything interesting. It
+  merely exists for the purpose of type discrimination.
+
 - Class: `basic-mailbox`
+
+  This is a concrete implementation of the `mailbox` protocol. 
+  Instances have two slots `mailbox-address` and `mailbox-display-name`.
+
 - Function: `mailbox` _object_ &rarr; _mailbox_
+
+  Tries to coerce its argument _object_ into an instance of class `mailbox`,
+  according to the following rules:
+
+    - if _object_ is already an instance of `mailbox`, it is returned directly
+
+    - if _object_ is an `address`, a new `basic-mailbox` is created, whose address
+      part is `object`, and whose display name is `nil`.
+
+    - if _object_ is a string, it is parsed according to the RFC `mailbox`
+      production, and the results are used to construct a new `basic-mailbox`.
+
+  If this function cannot convert its argument into a `mailbox`, it signals
+  an error of type `type-error`.
+
 - Generic Function: `mailboxp` _object_ &rarr; _result_
+
+  Tests, whether _object_ fulfills the `mailbox` protocol. This condition is 
+  always true by definition for subclasses of class `mailbox`. It may additionally 
+  be true for other objects.
+
 - Generic Function: `mailbox-address` _object_ &rarr; _address_
+
+  Answers the `address` instance, which describes the actual
+  email address associated with mailbox _object_. This method is part of the
+  core mailbox protocol, and must be implemented by all objects, which want
+  to participate in that protocol.
+
 - Generic Function: `mailbox-display-name` _object_ &rarr; _result_
+
+  Answers the display name associated with the given mailbox
+  instance _object_. This function is part of the core mailbox protocol and
+  must be implemented by all objects, which want to participate in that 
+  protocol.
+
 - Generic Function: `mailbox-local-part` _object_ &rarr; _result_
+
+  Answers the local part string of this mailbox's address.
+  The default method simply extracts the `address-local-part` from the object
+  returned by `mailbox-address` when applied to the given _object_.
+
 - Generic Function: `mailbox-domain` _object_ &rarr; _result_
+
+  Answers the domain string of this mailbox's address.
+  The default method simply extracts the `address-domain` from the object
+  returned by `mailbox-address` when applied to the given _object_.
+
 - Generic Function: `mailbox-string` _object_ &rarr; _result_
+  
+  Constructs a string representation of the given mailbox
+  instance. The result is required to be a well-formed RFC 5322 email address
+  parsable using the `mailbox` production. The default method should be usable
+  by almost all concrete `mailbox` implementations.
