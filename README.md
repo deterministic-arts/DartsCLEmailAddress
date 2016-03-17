@@ -10,11 +10,70 @@ ensures, that they are RFC 5322 compliant.
 Package DARTS.LIB.EMAIL-ADDRESS
 -------------------------------
 
-- Function: `parse-rfc5322-addr-spec` _string_ `&key` _start_ _end_ _allow-unicode_ &rarr; _local-part_ _domain_ _error_
-- Function: `parse-rfc5322-mailbox` _string_ `&key` _start_ _end_ _allow-unicode_ &rarr; _local-part_ _domain_ _display-name_ _error_
+- Variable: `*allow-unicode*` 
+
+  If true, the parser functions accept arbitrary characters (with `char-code` > 127)
+  in addition to what they accept otherwise. This affects the productions
+  of `ctext`, `atext`, `qtext`, and `dtext`. In other words: something like
+
+    > Däsiree Äßeldahl <d.äßeldahl@secret-äskulap.com>
+
+  becomes a valid email address. All base parser functions take a `:allow-unicode`
+  keyword argument, whose default value is the value of this variable.
+
+- Function: `parse-rfc5322-addr-spec` _string_ `&key` _start_ _end_ _allow-unicode_ _allow-trailing-junk_ &rarr; _local-part_ _domain_ _error_ _position_
+
+  Parse _string_ (or a subequence of it) as an RFC 5322 `addr-spec`. If
+  _allow-unicode_, characters outside of the ASCII range (i.e., with codes
+  > 127) are allowed virtually anywhere. See `*ALLOW-UNICODE*` for details,
+  whose value also is the default for this argument.
+
+  The values of _start_ and _end_ are bounding index designators for
+  the part of _string_ to work on.
+
+  If _allow-trailing-garbage_ is false (the default), the parser function
+  makes sure, that no unprocessed characters remain in the designated input
+  region of _string_ after a full address has successfully been parsed. If
+  the value is true, this function does not check for unprocessed characters;
+  the caller may inspect the returned _position_ value to determine, whether
+  the string was processed fully, or whether unprocessed characters remain.
+
+  This function returns four values:
+
+  - _local-part_ is the value of the address' local part. If parsing fails
+    early enough, this value is `nil`.
+
+  - _domain_ is the value of the address' domain part. If parsing fails, 
+    before the domain is encountered, this value is `nil`.
+
+  - _error_ is a `nil`, if the string could be parsed successfully. Otherwise,
+    it is a keyword symbol, which indicates, why the parser stopped.
+
+  - _position_ is an integer, which identifies the last character in _string_
+    successfully processed by this function.
+
+- Function: `parse-rfc5322-mailbox` _string_ `&key` _start_ _end_ _allow-unicode_ _allow-trailing-junk_ &rarr; _local-part_ _domain_ _display-name_ _error_
 - Function: `parse-rfc5322-mailbox-list` _string_ `&key` _start_ _end_ _allow-unicode_ &rarr; _list_ _error_ _position_
+
 - Function: `escape-local-part` _string_ `&key` _start_ _end_ &rarr; _result_
+
+  Ensures, that _string_ is properly escaped for use as the local part of an
+  email address. If necessary, this function adds quotes and backslashes. Note,
+  that non-ASCII characters with codes > 127 are not special cased by this
+  function, i.e., they are implicitly allowed.
+
+  The values of _start_ and _end_ are bounding index designators for
+  the part of _string_ to work on.
+
 - Function: `escape-display-name` _string_ `&key` _start_ _end_ &rarr; _result_
+
+  Ensures, that _string_ is properly escaped for use as the display name of a
+  mailbox. If necessary, this function adds quotes and backslashes. Note,
+  that non-ASCII characters with codes > 127 are not special cased by this
+  function, i.e., they are implicitly allowed.
+
+  The values of _start_ and _end_ are bounding index designators for the
+  part of _string_ to work on.  
 
 - Structure: `address`
 
