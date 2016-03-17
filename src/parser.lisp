@@ -428,6 +428,7 @@ properly escaped."
                         ((char= char #\\) (vector-push-extend #\\ buffer) (vector-push-extend #\\ buffer))
                         ((char= char #\") (vector-push-extend #\\ buffer) (vector-push-extend #\" buffer))
                         ((fws-char-p char) (vector-push-extend char buffer))
+                        ((> (char-code char) 127) (vector-push-extend char buffer))
                         ((qtext-char-p char) (vector-push-extend char buffer))
                         (t (vector-push-extend #\\ buffer)
                            (vector-push-extend char buffer))))
@@ -439,6 +440,7 @@ properly escaped."
          :for char := (char string position)
          :do (cond
                ((atext-char-p char) (setf state :text))
+               ((> (char-code char) 127) (setf state :text))
                ((char= char #\.)
                 (case state
                   ((:text) (setf state :dot))
@@ -469,6 +471,7 @@ and makes sure, that it satisfies the rules of an email display name."
                         ((char= char #\\) (vector-push-extend #\\ buffer) (vector-push-extend #\\ buffer))
                         ((char= char #\") (vector-push-extend #\\ buffer) (vector-push-extend #\" buffer))
                         ((fws-char-p char) (vector-push-extend char buffer))
+                        ((> (char-code char) 127) (vector-push-extend char buffer))
                         ((qtext-char-p char) (vector-push-extend char buffer))
                         (t (vector-push-extend #\\ buffer)
                            (vector-push-extend char buffer))))
@@ -477,6 +480,6 @@ and makes sure, that it satisfies the rules of an email display name."
       (loop
          :for position :upfrom start :below end
          :for char := (char string position)
-         :do (unless (atext-char-p char)
+         :do (unless (or (atext-char-p char) (> (char-code char) 127))
                (return-from escape-display-name (escape-it position)))
          :finally (return (subseq string start end))))))
