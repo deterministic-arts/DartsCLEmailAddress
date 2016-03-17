@@ -254,7 +254,8 @@
 
 (defun parse-rfc5322-addr-spec (string 
                                 &key (start 0) end
-                                     ((:allow-unicode *allow-unicode*) *allow-unicode*))
+                                     ((:allow-unicode *allow-unicode*) *allow-unicode*)
+                                     (allow-trailing-junk nil))
   "parse-rfc5322-addr-spec STRING &key START END => LOCAL-PART DOMAIN POSITION
 
 Parses an email address (rule addr-spec in RFC 5322) from STRING, starting at
@@ -274,7 +275,8 @@ an error, or when reaching the END index. The following error codes are defined:
   nil                no error, a full email address has been found
   :bad-local-part    no valid local part could be found
   :missing-separator the `@´ was not found
-  :bad-domain        no valid domain part could be found"
+  :bad-domain        no valid domain part could be found
+  :trailing-garbage  unprocessed characters remain after the address"
 
   (let ((local-part nil))
     (labels 
@@ -292,14 +294,23 @@ an error, or when reaching the END index. The following error codes are defined:
              (t (values local-part nil :missing-separator before))))
          (parse-domain (before after token value)
            (case token
-             ((:dot-atom :atom :domain-literal) (values local-part value nil after))
-             (t (values local-part nil :bad-domain before)))))
+             ((:dot-atom :atom :domain-literal) (finish local-part value after))
+             (t (values local-part nil :bad-domain before))))
+         (finish (local-part domain last-good)
+           (if allow-trailing-junk
+               (values local-part domain nil last-good)
+               (multiple-value-bind (after token value) (next-token string last-good end)
+                 (declare (ignore value))
+                 (if (null token)
+                     (values local-part domain nil after)
+                     (values local-part domain :trailing-garbage last-good))))))
       (jump start #'parse-local-part))))
 
 
 (defun parse-rfc5322-mailbox (string 
                               &key (start 0) end 
-                                   ((:allow-unicode *allow-unicode*) *allow-unicode*))
+                                   ((:allow-unicode *allow-unicode*) *allow-unicode*)
+                                   (allow-trailing-junk nil))
   "parse-rfc5322-mailbox STRING &optional START END => LOCAL-PART DOMAIN DISPLAY-NAME ERROR POSITION"
   (let ((end (or end (length string)))
         (local-part nil)
@@ -308,7 +319,13 @@ an error, or when reaching the END index. The following error codes are defined:
         (phrase nil))
     (labels
         ((finish-buffer (buffer) (coerce buffer 'simple-string))
-         (done (code position) (values local-part domain display-name code position))
+         (done (code position) 
+           (if (or code allow-trailing-junk)
+               (values local-part domain display-name code position)
+               (multiple-value-bind (position* token) (next-token string position end)
+                 (if (null token) 
+                     (values local-part domain display-name code position*)
+                     (values local-part domain display-name :trailing-garbage position)))))
          (copy-chars (src dst)
            (loop
               :for char :across src 
@@ -388,7 +405,8 @@ an error, or when reaching the END index. The following error codes are defined:
         ((make-mbox (local-part domain display-name)
            (list local-part domain display-name))
          (parse-mailbox (position)
-           (multiple-value-bind (local-part domain display-name error after) (parse-rfc5322-mailbox string position end)
+           (multiple-value-bind (local-part domain display-name error after) 
+               (parse-rfc5322-mailbox string :start position :end end :allow-trailing-junk t)
              (if error 
                  (values (nreverse answer) error position)
                  (progn (push (make-mbox local-part domain display-name) answer)
@@ -400,7 +418,8 @@ an error, or when reaching the END index. The following error codes are defined:
                ((:comma) (parse-mailbox after))
                ((nil) (values (nreverse answer) nil after))
                (t (values (nreverse answer) :comma-expected position))))))
-      (multiple-value-bind (local-part domain display-name error after) (parse-rfc5322-mailbox string start end)
+      (multiple-value-bind (local-part domain display-name error after) 
+          (parse-rfc5322-mailbox string :start start :end end :allow-trailing-junk t)
         (case error
           ((nil) (push (make-mbox local-part domain display-name) answer) (parse-next-mailbox after))
           ((:missing-display-name) (values nil nil after))
