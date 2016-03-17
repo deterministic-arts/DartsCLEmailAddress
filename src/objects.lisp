@@ -158,10 +158,10 @@
   (let ((d1 (address-domain a1))
         (d2 (address-domain a2)))
     (cond
-      ((string< d1 d2) t)
-      ((string< d2 d1) nil)
-      (t (string-lessp (address-domain a1)
-                       (address-domain a2))))))
+      ((string-lessp d1 d2) t)
+      ((string-lessp d2 d1) nil)
+      (t (string< (address-local-part a1)
+                  (address-local-part a2))))))
 
 (defun address<= (a1 a2)
   (not (address< a2 a1)))
