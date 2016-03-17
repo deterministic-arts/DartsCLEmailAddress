@@ -16,7 +16,7 @@ Package DARTS.LIB.EMAIL-ADDRESS
   in addition to what they accept otherwise. This affects the productions
   of `ctext`, `atext`, `qtext`, and `dtext`. In other words: something like
 
-    > Däsiree Äßeldahl <d.äßeldahl@secret-äskulap.com>
+    > `Däsiree Äßeldahl <d.äßeldahl@secret-äskulap.com>`
 
   becomes a valid email address. All base parser functions take a `:allow-unicode`
   keyword argument, whose default value is the value of this variable.
