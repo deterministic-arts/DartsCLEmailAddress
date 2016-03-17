@@ -1,11 +1,18 @@
 
-DartsCLEmailAddress
-===================
+Email Address Parsing
+======================
 
 This library provides a fully RFC 5322 compliant parser for
 email addresses. Also provided are a few tiny helper functions,
 which allow the formatting of email addresses in ways, which
 ensures, that they are RFC 5322 compliant.
+
+This library has been tested under
+
+- SBCL
+- Clozure Common Lisp
+- LispWorks
+- ABCL
 
 Package DARTS.LIB.EMAIL-ADDRESS
 -------------------------------
