@@ -67,7 +67,7 @@
             (is (equal expected-domain actual-domain))
             (is (equal expected-display actual-display))))))
 
-#(deftest test-unicode-address-spec-parser ()
+(deftest test-unicode-address-spec-parser ()
   (let ((data '(("ü@ä" "ü" "ä" nil)
                 ("ü@[ä]" "ü" "[ä]" nil)
                 ("\"Äüö Öüä\"@ß" "Äüö Öüä" "ß" nil)
