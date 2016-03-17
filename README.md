@@ -49,8 +49,8 @@ Package DARTS.LIB.EMAIL-ADDRESS
   - _error_ is a `nil`, if the string could be parsed successfully. Otherwise,
     it is a keyword symbol, which indicates, why the parser stopped.
 
-  - _position_ is an integer, which identifies the last character in _string_
-    successfully processed by this function.
+  - _position_ is an integer, which identifies the first character in _string_,
+    which has not been processed by this function.
 
 - Function: `parse-rfc5322-mailbox` _string_ `&key` _start_ _end_ _allow-unicode_ _allow-trailing-junk_ &rarr; _local-part_ _domain_ _display-name_ _error_
 
@@ -83,8 +83,8 @@ Package DARTS.LIB.EMAIL-ADDRESS
   - _error_ is a `nil`, if the string could be parsed successfully. Otherwise,
     it is a keyword symbol, which indicates, why the parser stopped.
 
-  - _position_ is an integer, which identifies the last character in _string_
-    successfully processed by this function.
+  - _position_ is an integer, which identifies the first character in _string_,
+    which has not been processed by this function.
 
 - Function: `parse-rfc5322-mailbox-list` _string_ `&key` _start_ _end_ _allow-unicode_ &rarr; _list_ _error_ _position_
 
@@ -114,8 +114,8 @@ Package DARTS.LIB.EMAIL-ADDRESS
   - _error_ is a `nil`, if the string could be parsed successfully. Otherwise,
     it is a keyword symbol, which indicates, why the parser stopped.
 
-  - _position_ is an integer, which identifies the last character in _string_
-    successfully processed by this function.
+  - _position_ is an integer, which identifies the first character in _string_,
+    which has not been processed by this function.
 
 - Function: `escape-local-part` _string_ `&key` _start_ _end_ &rarr; _result_
 
