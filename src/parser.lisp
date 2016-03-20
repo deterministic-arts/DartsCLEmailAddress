@@ -104,6 +104,7 @@
 |#
 
 (defvar *allow-unicode* nil)
+(defvar *allow-obsolete-syntax* nil)
 
 (declaim (ftype (function (character) (values t))
                 atext-char-p fws-char-p dtext-char-p ctext-char-p
@@ -172,6 +173,7 @@
                    ((ctext-char-p char) (skip-comment (1+ p) depth))
                    ((fws-char-p char) (skip-comment (1+ p) depth))
                    (t (values p nil))))))
+         
          (skip-cfws (p)
            (if (>= p end)
                (values p t)
@@ -180,6 +182,7 @@
                    ((char= char #\() (skip-comment (1+ p) 1))
                    ((fws-char-p char) (skip-cfws (1+ p)))
                    (t (values p t))))))
+         
          (parse-quoted-string (p buffer)
            (if (>= p end) 
                (values p :error nil)
@@ -222,7 +225,11 @@
                    (ecase state
                      ((:start) (values p :error nil))
                      ((:text) (values p (if pure :atom :dot-atom) (finish buffer)))
-                     ((:dot) (values (- p 1) (if pure :atom :dot-atom) (finish buffer))))
+                     ((:dot) 
+                      (cond
+                        (*allow-obsolete-syntax* (vector-push-extend #\. buffer) (values p :phrase (finish buffer)))
+                        (pure (- p 1) :atom (finish buffer))
+                        (t (values (- p 1) :dot-atom (finish buffer))))))
                    (let ((char (at p)))
                      (cond
                        ((atext-char-p char)
@@ -233,7 +240,12 @@
                        (t (ecase state
                             ((:start) (values p :error nil))
                             ((:text) (values p (if pure :atom :dot-atom) (finish buffer)))
-                            ((:dot) (values (- p 1) (if pure :atom :dot-atom) (finish buffer))))))))))))
+                            ((:dot) 
+                             (cond
+                               (*allow-obsolete-syntax* (vector-push-extend #\. buffer) (values p :phrase (finish buffer)))
+                               (pure (- p 1) :atom (finish buffer))
+                               (t (values (- p 1) :dot-atom (finish buffer))))))))))))))
+
       (declare (inline at))
       (multiple-value-bind (position ok) (skip-cfws start)
         (cond 
@@ -310,6 +322,7 @@ an error, or when reaching the END index. The following error codes are defined:
 (defun parse-rfc5322-mailbox (string 
                               &key (start 0) end 
                                    ((:allow-unicode *allow-unicode*) *allow-unicode*)
+                                   ((:allow-obsolete-syntax *allow-obsolete-syntax*) *allow-obsolete-syntax*)
                                    (allow-trailing-junk nil))
   "parse-rfc5322-mailbox STRING &optional START END => LOCAL-PART DOMAIN DISPLAY-NAME ERROR POSITION"
   (let ((end (or end (length string)))
@@ -348,15 +361,14 @@ an error, or when reaching the END index. The following error codes are defined:
          (parse-start (before after token value)
            (case token
              ((:<) (jump after #'parse-enclosed))
-             ((:dot-atom) (setf local-part value) (jump after #'parse-@))
-             ((:atom :quoted-string) (push value phrase) (jump after #'maybe-parse-display-name))
+             ((:phrase) (parse-display-name before after token value))
+             ((:dot-atom :atom :quoted-string)
+              (multiple-value-bind (after* token* value*) (next-token string after end)
+                (case token*
+                  ((:@) (setf local-part value) (jump after* #'parse-domain))
+                  (otherwise (push value phrase) (parse-display-name before after* token* value*)))))
              ((nil) (done :missing-display-name before))
              (t (done :bad-display-name before))))
-         (parse-@ (before after token value)
-           (declare (ignore value))
-           (case token
-             ((:@) (jump after #'parse-domain))
-             (t (done :missin-separator before))))
          (parse-domain (before after token value)
            (case token
              ((:domain-literal :atom :dot-atom) (setf domain value) (done nil after))
@@ -382,23 +394,19 @@ an error, or when reaching the END index. The following error codes are defined:
            (case token
              ((:>) (done nil after))
              (t (done :missing-delimiter before))))
-         (maybe-parse-display-name (before after token value)
-           (case token
-             ((:atom :quoted-string) (push value phrase) (jump after #'parse-display-name))
-             ((:<) (setf display-name (finish-phrase)) (jump after #'parse-enclosed))
-             ((:@) (setf local-part (car phrase)) (jump after #'parse-domain))
-             ((nil) (done :missing-address before))
-             (t (done :bad-display-name before))))
          (parse-display-name (before after token value)
            (case token
-             ((:atom :quoted-string) (push value phrase) (jump after #'parse-display-name))
+             ((:atom :quoted-string :phrase) (push value phrase) (jump after #'parse-display-name))
              ((:<) (setf display-name (finish-phrase)) (jump after #'parse-enclosed))
              ((nil) (done :missing-address before))
              (t (done :bad-display-name before)))))
       (jump start #'parse-start))))
 
 
-(defun parse-rfc5322-mailbox-list (string &key (start 0) end ((:allow-unicode *allow-unicode*) *allow-unicode*))
+(defun parse-rfc5322-mailbox-list (string 
+                                   &key (start 0) end 
+                                        ((:allow-unicode *allow-unicode*) *allow-unicode*)
+                                        ((:allow-obsolete-syntax *allow-obsolete-syntax*) *allow-obsolete-syntax*))
   (let ((end (or end (length string)))
         (answer ()))
     (labels

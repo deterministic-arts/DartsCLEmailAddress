@@ -67,6 +67,20 @@
             (is (equal expected-domain actual-domain))
             (is (equal expected-display actual-display))))))
 
+(deftest test-obsolete-phrases ()
+  (let ((data '(("A.L. <andy.lower@upper.bounds>" "andy.lower" "upper.bounds" "A.L.")
+                ("A. Lower <andy.lower@upper.bounds>" "andy.lower" "upper.bounds" "A. Lower"))))
+    (loop
+      :for (input local domain display) :in data
+      :do (multiple-value-bind (unused1 unused2 unused3 error) (parse-rfc5322-mailbox input)
+            (declare (ignore unused3 unused2 unused1))
+            (is (eq (and error t) t)))
+          (multiple-value-bind (local* domain* display* error) (parse-rfc5322-mailbox input :allow-obsolete-syntax t)
+            (is (not error))
+            (is (equal local local*))
+            (is (equal domain domain*))
+            (is (equal display display*))))))
+
 (deftest test-unicode-address-spec-parser ()
   (let ((data '(("ü@ä" "ü" "ä" nil)
                 ("ü@[ä]" "ü" "[ä]" nil)

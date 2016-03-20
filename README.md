@@ -28,6 +28,18 @@ Package DARTS.LIB.EMAIL-ADDRESS
   becomes a valid email address. All base parser functions take a `:allow-unicode`
   keyword argument, whose default value is the value of this variable.
 
+- Variable: `*allow-obsolete-syntax*`
+
+  If true, enable support for a few of the `obs-...` productions in the
+  RFC. This is disabled by default. Right now, enabling this option makes 
+   
+    > `R. L. Stephenson <r.l.stephenson@literature-and-coffee.cookies>`
+
+  a well-formed mailbox spec. Without this option enabled, the address
+  must be written as (e.g.)
+
+    > `"R. L. Stephenson" <r.l.stephenson@literature-and-coffee.cookies>`
+
 - Function: `parse-rfc5322-addr-spec` _string_ `&key` _start_ _end_ _allow-unicode_ _allow-trailing-junk_ &rarr; _local-part_ _domain_ _error_ _position_
 
   Parse _string_ (or a subequence of it) as an RFC 5322 `addr-spec`. If
@@ -59,12 +71,19 @@ Package DARTS.LIB.EMAIL-ADDRESS
   - _position_ is an integer, which identifies the first character in _string_,
     which has not been processed by this function.
 
-- Function: `parse-rfc5322-mailbox` _string_ `&key` _start_ _end_ _allow-unicode_ _allow-trailing-junk_ &rarr; _local-part_ _domain_ _display-name_ _error_
+- Function: `parse-rfc5322-mailbox` _string_ `&key` _start_ _end_ _allow-unicode_ _allow-obsolete-syntax_ _allow-trailing-junk_ &rarr; _local-part_ _domain_ _display-name_ _error_
 
   Parse _string_ (or a subequence of it) as an RFC 5322 `mailbox`. If
   _allow-unicode_, characters outside of the ASCII range (i.e., with codes
   &gt; 127) are allowed virtually anywhere. See `*ALLOW-UNICODE*` for details,
   whose value also is the default for this argument.
+
+  If _allow-obsolete-syntax_ is false (the default), this function is
+  very strict with respect to the accepted input. In particular, none of
+  the `obs-` productions is recognized in any of the address components.
+  By supplying a value of true for this argument, the parser becomes more
+  lenient, accepting values, which have historically been accepted as 
+  well-formed addresses. See `*ALLOW-OBSOLETE-SYNTAX*` for details. 
 
   The values of _start_ and _end_ are bounding index designators for
   the part of _string_ to work on.
@@ -93,13 +112,20 @@ Package DARTS.LIB.EMAIL-ADDRESS
   - _position_ is an integer, which identifies the first character in _string_,
     which has not been processed by this function.
 
-- Function: `parse-rfc5322-mailbox-list` _string_ `&key` _start_ _end_ _allow-unicode_ &rarr; _list_ _error_ _position_
+- Function: `parse-rfc5322-mailbox-list` _string_ `&key` _start_ _end_ _allow-unicode_ _allow-obsolete-syntax_ &rarr; _list_ _error_ _position_
 
   Parse _string_ (or a subequence of it) as a comma separated list of RFC 
   5322 `mailbox` specifications. If _allow-unicode_, characters outside of the 
   ASCII range (i.e., with codes &gt; 127) are allowed virtually anywhere. 
   See `*ALLOW-UNICODE*` for details, whose value also is the default for 
   this argument.
+
+  If _allow-obsolete-syntax_ is false (the default), this function is
+  very strict with respect to the accepted input. In particular, none of
+  the `obs-` productions is recognized in any of the address components.
+  By supplying a value of true for this argument, the parser becomes more
+  lenient, accepting values, which have historically been accepted as 
+  well-formed addresses. See `*ALLOW-OBSOLETE-SYNTAX*` for details. 
 
   The values of _start_ and _end_ are bounding index designators for
   the part of _string_ to work on.
