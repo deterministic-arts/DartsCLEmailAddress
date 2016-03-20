@@ -397,6 +397,7 @@ an error, or when reaching the END index. The following error codes are defined:
          (parse-display-name (before after token value)
            (case token
              ((:atom :quoted-string :phrase) (push value phrase) (jump after #'parse-display-name))
+             ((:dot-atom) (if *allow-obsolete-syntax* (progn (push value phrase) (jump after #'parse-display-name)) (done :bad-display-name before)))
              ((:<) (setf display-name (finish-phrase)) (jump after #'parse-enclosed))
              ((nil) (done :missing-address before))
              (t (done :bad-display-name before)))))
